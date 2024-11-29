@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { ref, computed, onMounted } from "vue";
 
 interface Task {
   id: number;
@@ -7,26 +7,35 @@ interface Task {
   status: "Обычная" | "Срочная" | "Выполненная";
 }
 
-let taskId = 0;
-
-const newTask = ref<string>("");
+const newTask = ref("");
 const tasks = ref<Task[]>([]);
 const editingIndex = ref<number | null>(null);
-const editedTask = ref<string>("");
-const filter = ref<string>("Все");
+const editedTask = ref("");
+const filter = ref("Все");
 
 const filters = ["Все", "Обычная", "Срочная", "Выполненная"];
 
 const addTask = () => {
-  const trimmedTask = newTask.value.trim();
-  if (trimmedTask && !tasks.value.some((task) => task.text === trimmedTask)) {
-    tasks.value.push({ id: taskId++, text: trimmedTask, status: "Обычная" });
+  if (
+    newTask.value &&
+    !tasks.value.some((task) => task.text === newTask.value)
+  ) {
+    const _newTask: Task = {
+      id: Date.now(),
+      text: newTask.value,
+      status: "Обычная",
+    };
+
+    tasks.value.push(_newTask);
     newTask.value = "";
+
+    localStorage.setItem("tasks", JSON.stringify(tasks.value));
   }
 };
 
 const removeTask = (index: number) => {
   tasks.value.splice(index, 1);
+  localStorage.setItem("tasks", JSON.stringify(tasks.value));
 };
 
 const startEditing = (index: number) => {
@@ -37,6 +46,7 @@ const startEditing = (index: number) => {
 const saveTask = (index: number) => {
   if (editedTask.value.trim()) {
     tasks.value[index].text = editedTask.value.trim();
+    localStorage.setItem("tasks", JSON.stringify(tasks.value));
   }
   cancelEditing();
 };
@@ -50,6 +60,7 @@ const updateTaskStatus = (index: number, event: Event) => {
   const target = event.target as HTMLSelectElement;
   if (target) {
     tasks.value[index].status = target.value as Task["status"];
+    localStorage.setItem("tasks", JSON.stringify(tasks.value));
   }
 };
 
@@ -58,6 +69,11 @@ const filteredTasks = computed(() =>
     ? tasks.value
     : tasks.value.filter((task) => task.status === filter.value)
 );
+
+onMounted(() => {
+  const _tasks = localStorage.getItem("tasks");
+  tasks.value = JSON.parse(_tasks) ?? [];
+});
 </script>
 
 <template>
@@ -65,8 +81,8 @@ const filteredTasks = computed(() =>
     <h1>Список задач</h1>
 
     <div>
-      <input v-model.trim="newTask" type="text" placeholder="Введите текст" />
-      <button type="button" :disabled="!newTask.trim()" @click="addTask">
+      <input v-model="newTask" type="text" placeholder="Введите текст" />
+      <button type="button" :disabled="!newTask" @click="addTask">
         Добавить задачу
       </button>
     </div>
@@ -119,8 +135,8 @@ const filteredTasks = computed(() =>
 $primary-color: #ff6f61;
 $secondary-color: #4a90e2;
 $background-color: #f9f9f9;
-$button-hover: darken($primary-color, 10%);
-$input-border: lighten($secondary-color, 30%);
+$button-hover: $primary-color;
+$input-border: $secondary-color;
 $box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 
 body {
@@ -179,7 +195,7 @@ button {
   }
 
   &:disabled {
-    background: lighten($primary-color, 20%);
+    background: gray;
     cursor: not-allowed;
   }
 
